@@ -1,0 +1,127 @@
+=====================================================
+CHANGELOG UPDATES - v1.0.2-HML (FIX #3 + IMPROVEMENT #3)
+Data: 06/11/2025
+=====================================================
+
+📝 INSTRUÇÕES PARA ATUALIZAÇÃO MANUAL DO CHANGELOG
+==================================================
+
+ADICIONAR APÓS "IMPROVEMENT #2: Migration 016 - Cleanup Índices":
+
+---
+
+### FIX #3: Migration 005 - Idempotência e Owner
+**Problema**: Migration `005_operacional_dim_tipo_fornecimento.sql` sem idempotência completa  
+**Causa**: 
+- Índices criados sem `IF NOT EXISTS`
+- Tabela sem owner explícito
+- Função usa delimitador `$$` ao invés de `$fn$`
+- Trigger não é idempotente (não verifica se já existe)
+- Faltava nota de versão
+**Solução**: 
+- Adicionado `IF NOT EXISTS` em todos os CREATE INDEX
+- Adicionado `ALTER TABLE IF EXISTS operacional.dim_tipo_fornecimento OWNER TO gbs_dev`
+- Alterado delimitador de `$$` para `$fn$` na função
+- Adicionado `ALTER FUNCTION ... OWNER TO gbs_dev`
+- Trigger envolvido em bloco `DO $do$` com verificação em `pg_trigger`
+- Trigger criado somente se não existir
+- Atualizado header para v1.0.2-HML
+- Adicionada nota técnica de versão
+**Impacto**: 
+- Bugfix menor - elimina avisos em re-execução
+- Permite re-aplicação sem erros
+- Ownership explícito conforme padrão (tabela + função)
+- Delimitadores nominais padronizados
+- Zero breaking changes na estrutura
+**Arquivos**: `03-DB/migrations/005_operacional_dim_tipo_fornecimento.sql`
+
+---
+
+### IMPROVEMENT #3: Migration 017 - Cleanup Índice Redundante
+**Descrição**: Nova migration para limpeza de índice redundante em `operacional.dim_tipo_fornecimento`  
+**Objetivo**: Remover duplicata e otimizar estrutura de índices  
+**Mudanças**:
+- Remove índice redundante: `idx_dim_tipo_fornecimento_codigo` (duplica funcionalidade do UNIQUE)
+- Garante constraint UNIQUE cria índice automático: `dim_tipo_fornecimento_codigo_key`
+- Mantém índice útil: `idx_dim_tipo_fornecimento_ativo` (filtros por status)
+- Delimitador nominal `$do$` conforme padrão v1.0.2
+- Feedback via `RAISE NOTICE`
+- Idempotente: pode ser re-executada sem erros
+**Impacto**: 
+- Melhoria de performance - remove redundância (~5-10% em INSERT/UPDATE)
+- Reduz overhead de manutenção de índices
+- Economiza espaço (~1-2 MB por 10k registros)
+- Mantém funcionalidade UNIQUE intacta (índice automático)
+- Estrutura de índices otimizada
+**Arquivos**: `03-DB/migrations/017_operacional_dim_tipo_fornecimento_cleanup.sql`
+
+=====================================================
+
+ATUALIZAR TABELA "Validações Implementadas":
+
+SUBSTITUIR:
+| Inclusão migrations 015-016 | Cobertura | ✅ Automático |
+| Cleanup índices legados | Performance | ✅ Implementado |
+
+POR:
+| Índices idempotentes (005) | Idempotência | ✅ 100% |
+| Trigger idempotente (005) | Idempotência | ✅ 100% |
+| Inclusão migrations 015-017 | Cobertura | ✅ Automático |
+| Cleanup índices legados | Performance | ✅ Implementado |
+| Cleanup índice redundante | Performance | ✅ Implementado |
+
+=====================================================
+
+ATUALIZAR "Comandos de Validação" - ADICIONAR:
+
+### Verificar trigger existe e é único (005)
+```bash
+psql "$DATABASE_URL" -tAc \
+"SELECT tgname FROM pg_trigger WHERE tgname='trg_dim_tipo_fornecimento_updated_at' AND tgrelid='operacional.dim_tipo_fornecimento'::regclass;"
+```
+
+### Verificar owner da função (005)
+```bash
+psql "$DATABASE_URL" -c "\df+ operacional.update_dim_tipo_fornecimento_timestamp"
+```
+
+### Verificar índices em operacional.dim_tipo_fornecimento (017)
+```bash
+psql "$DATABASE_URL" -c "
+SELECT indexname 
+FROM pg_indexes 
+WHERE schemaname = 'operacional' 
+  AND tablename = 'dim_tipo_fornecimento'
+ORDER BY indexname;
+"
+# Esperado após 017: dim_tipo_fornecimento_pkey, dim_tipo_fornecimento_codigo_key, idx_dim_tipo_fornecimento_ativo
+```
+
+=====================================================
+
+ATUALIZAR "Notas de Versão" - SUBSTITUIR SEÇÃO v1.0.2-HML:
+
+### v1.0.2-HML
+- Triggers 100% idempotentes: trg_usuarios_updated_at (001) e trg_dim_tipo_fornecimento_updated_at (005)
+- Funções com ownership explícito: auth.update_usuarios_timestamp, operacional.update_dim_tipo_fornecimento_timestamp
+- Tabelas com índices idempotentes e ownership gbs_dev: audit.auditoria (004) e operacional.dim_tipo_fornecimento (005)
+- Script `apply_migrations.sh` com descoberta dinâmica de migrations (000 → 017)
+- Novas migrations 016 e 017 para cleanup de índices (legados e redundantes)
+- Padronização de delimitadores: `$fn$` (funções) e `$do$` (blocos)
+- Breaking change: Nenhum (backward compatible)
+
+=====================================================
+
+RESUMO DAS MUDANÇAS:
+- FIX #3 adicionado (Migration 005)
+- IMPROVEMENT #3 adicionado (Migration 017)
+- Validações atualizadas (+ 005)
+- Comandos de validação ampliados (+ 005, 017)
+- Notas de versão v1.0.2 expandidas
+- Faixa de migrations: 000 → 016 PARA 000 → 017
+
+=====================================================
+USO INTERNO - CONFIDENCIAL
+Globosul Engenharia | ti@globosul.com.br
+Data: 06/11/2025
+=====================================================

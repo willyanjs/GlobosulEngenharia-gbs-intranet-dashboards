@@ -1,0 +1,200 @@
+=====================================================
+TREE - Estrutura do Projeto GBS | Intranet & Dashboards
+Versão: v1.0.2-HML
+Data: 06/11/2025
+=====================================================
+
+GBS - Intranet & Dashboards/
+│
+├── 01-Docs/
+│   ├── CHANGELOG.md                    # Histórico de versões e mudanças
+│   ├── CHECKLIST_HML.md                # Checklist de deploy HML
+│   ├── DELIVERY.md                     # Entregáveis do projeto
+│   ├── DEPLOY_HML.md                   # Procedimentos de deploy
+│   ├── FIXES_APPLIED.md                # Documentação de fixes aplicados
+│   ├── INDICE.md                       # Índice de documentos
+│   ├── QUICKSTART.md                   # Guia rápido de setup
+│   ├── README-PROJ.md                  # Documentação principal
+│   ├── README_PACOTE.md                # Documentação de pacote
+│   ├── SUMMARY.md                      # Resumo do projeto
+│   ├── VERSAO.txt                      # Versão atual
+│   └── _EVIDENCIAS/
+│       ├── CHECKS-v1.0.2-HML.txt       # Checklist v1.0.2
+│       ├── CHECKS.txt                  # Checklist atual
+│       ├── FIX-001-delimitadores.txt   # Fix delimitadores 001
+│       ├── FIX-002-audit-core-hotfix.txt  # Fix 004 + 016 (NOVO)
+│       ├── fix-002-sessoes-test.txt    # Fix sessões
+│       ├── migrations-execution-v1.0.1-HML.txt
+│       └── TREE.txt                    # Esta estrutura
+│
+├── 02-Backends/
+│   └── gbs-intranet/
+│       └── v1.0.0-HML/
+│           ├── .env.example
+│           ├── api-collection.http
+│           ├── CHANGELOG.md
+│           ├── CHECKLIST_HML.md
+│           ├── COPIAR_PACOTE.sh
+│           ├── cron.example
+│           ├── DEPLOY_HML.md
+│           ├── FIXES_APPLIED.md
+│           ├── package.json
+│           ├── QUICKSTART.md
+│           ├── README_PACOTE.md
+│           ├── SUMMARY.md
+│           ├── tsconfig.json
+│           ├── VERSAO.txt
+│           ├── docs/
+│           ├── src/
+│           │   ├── config/
+│           │   ├── database/
+│           │   │   └── migrations/
+│           │   │       ├── 001_create_usuarios.sql
+│           │   │       ├── 002_create_sessoes.sql
+│           │   │       ├── 003_create_reset_tokens.sql
+│           │   │       ├── 004_create_auditoria.sql
+│           │   │       ├── 005_seed_admin.sql
+│           │   │       ├── 006_create_dim_tipo_fornecimento.sql
+│           │   │       ├── 007_create_obras.sql
+│           │   │       └── 008_create_contratos.sql
+│           │   ├── modules/
+│           │   │   └── users/
+│           │   └── shared/
+│           │       ├── middleware/
+│           │       ├── routes/
+│           │       └── utils/
+│           ├── tests/
+│           └── _EVIDENCIAS/
+│               ├── CHECKS.txt
+│               └── TREE.txt
+│
+├── 03-DB/
+│   ├── apply_migrations.sh             # Script de aplicação automática
+│   ├── b%40nc0PSQL                     # Senha do banco (gitignored)
+│   ├── logs/
+│   │   └── migrations.log              # Log de aplicação
+│   ├── migrations/                     # ⭐ MIGRATIONS v1.0.2-HML
+│   │   ├── 000_create_schemas.sql
+│   │   ├── 001_auth_usuarios.sql       # v1.0.2-HML (trigger idempotente)
+│   │   ├── 002_auth_sessoes.sql
+│   │   ├── 003_auth_reset_tokens.sql
+│   │   ├── 004_audit_core.sql          # v1.0.2-HML (hotfix idempotência)
+│   │   ├── 005_operacional_dim_tipo_fornecimento.sql
+│   │   ├── 006_operacional_obras.sql
+│   │   ├── 007_operacional_contratos.sql
+│   │   ├── 008_financeiro_medicoes.sql
+│   │   ├── 009_financeiro_notas_fiscais.sql
+│   │   ├── 010_financeiro_pagamentos.sql
+│   │   ├── 011_financeiro_glosas.sql
+│   │   ├── 012_audit_auditoria_fin.sql
+│   │   ├── 013_vw_pipeline.sql
+│   │   ├── 014_vw_fluxocaixa.sql
+│   │   ├── 015_auth_reset_tokens_patch.sql
+│   │   ├── 016_cleanup_reset_tokens_indexes.sql  # NOVO v1.0.2-HML
+│   │   └── README_MIGRATIONS.md        # v1.0.2-HML (atualizado)
+│   └── views_sql/
+│       ├── vw_fluxocaixa.sql
+│       └── vw_pipeline.sql
+│
+├── 04-APIs/
+│   └── collections/
+│       └── README_API_COLLECTION.md
+│
+├── 05-Testes/
+│   └── relatorios_cobertura/
+│
+├── 06-Deploy/
+│   ├── HML/
+│   └── PROD/
+│
+└── 99-Archive/
+    └── migrations-legadas-v1.0.0/
+        ├── 006_create_dim_tipo_fornecimento.sql
+        ├── 007_create_obras.sql
+        ├── 008_create_contratos.sql
+        ├── 009_create_medicoes.sql
+        ├── 010_create_notas_fiscais.sql
+        ├── 011_create_pagamentos.sql
+        ├── 012_create_glosas.sql
+        ├── 013_create_auditoria_fin.sql
+        └── README.md
+
+=====================================================
+RESUMO v1.0.2-HML
+=====================================================
+
+Total de Migrations: 17 (000 → 016)
+├── Schemas base: 000
+├── Auth: 001-003
+├── Audit core: 004 (hotfix v1.0.2)
+├── Operacional: 005-007
+├── Financeiro: 008-011
+├── Audit financeiro: 012
+├── Views: 013-014
+└── Patches: 015-016 (novo cleanup v1.0.2)
+
+Novidades v1.0.2:
+✅ 004_audit_core.sql - Idempotência total + OWNER
+✅ 016_cleanup_reset_tokens_indexes.sql - Limpeza de índices legados
+✅ apply_migrations.sh - Descoberta dinâmica (000 → 016 automático)
+✅ Delimitadores nominais: $fn$ e $do$
+✅ Documentação atualizada (CHANGELOG, README_MIGRATIONS)
+
+Arquivos de Evidência:
+📄 FIX-001-delimitadores.txt (fix 001)
+📄 FIX-002-audit-core-hotfix.txt (fix 004 + 016) ← NOVO
+
+=====================================================
+SCRIPTS DE VALIDAÇÃO
+=====================================================
+
+# 1) Aplicar migrations completas
+export DATABASE_URL="host=192.168.1.92 port=5432 dbname=gbs_intranet_prod user=gbs_dev password='...'"
+cd 03-DB
+bash apply_migrations.sh
+
+# 2) Verificar faixa detectada
+grep -E "Iniciando aplicação das migrations \(ordem:" logs/migrations.log
+# Esperado: "ordem: 000 → 016"
+
+# 3) Verificar índices de audit.auditoria
+psql "$DATABASE_URL" -c "\d audit.auditoria" | grep -i index
+
+# 4) Verificar índices de auth.reset_tokens (após 016)
+psql "$DATABASE_URL" -c "
+SELECT indexname 
+FROM pg_indexes 
+WHERE schemaname = 'auth' AND tablename = 'reset_tokens'
+ORDER BY indexname;
+"
+# Esperado: idx_reset_tokens_user_id, _token, _expires_at, _ativos
+
+# 5) Smoke test
+psql "$DATABASE_URL" -c "
+INSERT INTO auth.reset_tokens(id_usuario, token, expira_em)
+SELECT id_usuario, 'TEST-' || gen_random_uuid(), now() + interval '1 hour'
+FROM auth.usuarios LIMIT 1;
+
+SELECT count(*) FROM auth.reset_tokens 
+WHERE usado_em IS NULL AND revogado_em IS NULL AND expira_em > now();
+"
+
+=====================================================
+PADRÕES APLICADOS
+=====================================================
+
+✅ Delimitadores nominais: $fn$ (funções), $do$ (blocos)
+✅ IF NOT EXISTS: tabelas, índices, triggers
+✅ OWNER TO gbs_dev: funções e tabelas
+✅ Idempotência: 100% (re-execução sem erros)
+✅ UTF-8 sem BOM + LF (Unix line endings)
+✅ Schema qualificado: auth.*, operacional.*, financeiro.*, vw.*, audit.*
+✅ Proibido: uso de public.*
+✅ FKs cross-schema: ON UPDATE CASCADE, ON DELETE RESTRICT
+
+=====================================================
+USO INTERNO - CONFIDENCIAL
+Globosul Engenharia | ti@globosul.com.br
+Data: 06/11/2025
+Versão: v1.0.2-HML
+=====================================================

@@ -1,0 +1,45 @@
+=======================================================
+ESTRUTURA DE MIGRATIONS - v1.0.2-HML
+GBS | Intranet & Dashboards
+Data: 07/11/2025
+=======================================================
+
+03-DB/migrations/
+├── 000_create_schemas.sql
+├── 001_auth_usuarios.sql
+├── 002_auth_sessoes.sql
+├── 003_auth_reset_tokens.sql
+├── 004_audit_core.sql
+├── 005_operacional_dim_tipo_fornecimento.sql
+├── 006_operacional_obras.sql ← HOTFIX v1.0.2-HML (idempotência)
+├── 007_operacional_contratos.sql
+├── 008_financeiro_medicoes.sql
+├── 009_financeiro_notas_fiscais.sql
+├── 010_financeiro_pagamentos.sql
+├── 011_financeiro_glosas.sql
+├── 012_audit_auditoria_fin.sql
+├── 013_vw_pipeline.sql
+├── 014_vw_fluxocaixa.sql
+├── 015_auth_reset_tokens_patch.sql
+├── 016_cleanup_reset_tokens_indexes.sql
+├── 017_operacional_dim_tipo_fornecimento_cleanup.sql
+├── 018_operacional_obras_cleanup.sql ← NOVO v1.0.2-HML (cleanup redundância)
+└── README_MIGRATIONS.md
+
+=======================================================
+RESUMO
+=======================================================
+Total de migrations: 19 arquivos SQL
+Ordem de execução: 000 → 018
+Status: ✅ Todas idempotentes e documentadas
+
+Mudanças v1.0.2-HML:
+- FIX #3: Migration 005 - Idempotência e delimitadores
+- FIX #4: Migration 006 - Idempotência e delimitadores
+- IMPROVEMENT #3: Migration 017 - Cleanup dim_tipo_fornecimento
+- IMPROVEMENT #4: Migration 018 - Cleanup obras
+
+=======================================================
+USO INTERNO - CONFIDENCIAL
+Globosul Engenharia | ti@globosul.com.br
+=======================================================

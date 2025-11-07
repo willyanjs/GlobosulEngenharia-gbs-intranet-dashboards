@@ -1,0 +1,3 @@
+v1.0.1-HML
+06/11/2025
+Infraestrutura - Migrations & Deploy Automation

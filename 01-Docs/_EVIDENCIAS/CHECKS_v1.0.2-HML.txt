@@ -1,0 +1,224 @@
+=======================================================
+COMANDOS DE VALIDAÇÃO - v1.0.2-HML
+GBS | Intranet & Dashboards
+Data: 07/11/2025
+=======================================================
+
+## VALIDAÇÃO #1: Aplicar migrations 006 e 018 isoladamente
+## (Opcional - apenas para testes específicos)
+
+# Hotfix 006 (idempotência)
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f "03-DB/migrations/006_operacional_obras.sql"
+
+# Cleanup 018 (remove redundância)
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f "03-DB/migrations/018_operacional_obras_cleanup.sql"
+
+=======================================================
+
+## VALIDAÇÃO #2: Verificar índices finais em operacional.obras
+
+psql "$DATABASE_URL" -tAc "
+SELECT 
+  indexname, 
+  indexdef 
+FROM pg_indexes 
+WHERE schemaname='operacional' 
+  AND tablename='obras' 
+ORDER BY indexname;
+"
+
+# Resultado esperado (7 índices):
+# 1. obras_pkey (PRIMARY KEY em id_obra)
+# 2. obras_codigo_obra_key (UNIQUE em codigo_obra) ✅ Automático
+# 3. idx_obras_ativo (INDEX em ativo)
+# 4. idx_obras_cliente (INDEX em cliente)
+# 5. idx_obras_gate_ativo (INDEX composto parcial)
+# 6. idx_obras_implantacao (INDEX parcial)
+# 7. idx_obras_tipo_fornecimento (INDEX em tipo_fornecimento_id)
+# 
+# ❌ idx_obras_codigo deve estar AUSENTE (removido na 018)
+
+=======================================================
+
+## VALIDAÇÃO #3: Verificar constraint UNIQUE
+
+psql "$DATABASE_URL" -c "
+SELECT 
+  conname AS constraint_name,
+  contype AS constraint_type
+FROM pg_constraint
+WHERE conrelid = 'operacional.obras'::regclass
+  AND contype = 'u'
+ORDER BY conname;
+"
+
+# Resultado esperado:
+# obras_codigo_obra_key | u (UNIQUE)
+
+=======================================================
+
+## VALIDAÇÃO #4: Orquestrador completo (000 → 018)
+
+# Converter line endings (se necessário)
+dos2unix 03-DB/apply_migrations.sh >/dev/null 2>&1 || true
+
+# Executar todas as migrations na ordem
+bash 03-DB/apply_migrations.sh
+
+# Verificar log de execução
+grep -E 'Iniciando aplicação das migrations \(ordem:' \
+  03-DB/logs/migrations.log
+
+# Resultado esperado:
+# [INFO] Iniciando aplicação das migrations (ordem: 000 → 018)...
+
+=======================================================
+
+## VALIDAÇÃO #5: Re-execução da 006 (teste de idempotência)
+
+# Deve executar SEM erros (todos os índices têm IF NOT EXISTS)
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f "03-DB/migrations/006_operacional_obras.sql"
+
+# Resultado esperado: exit code 0, sem erros
+
+=======================================================
+
+## VALIDAÇÃO #6: Re-execução da 018 (teste de idempotência)
+
+# Deve executar SEM erros (bloco DO $do$ com verificação)
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 \
+  -f "03-DB/migrations/018_operacional_obras_cleanup.sql"
+
+# Resultado esperado: 
+# - exit code 0
+# - NOTICE: "Índice redundante removido: idx_obras_codigo" 
+#   (apenas na primeira execução)
+# - Silencioso nas re-execuções subsequentes
+
+=======================================================
+
+## VALIDAÇÃO #7: Verificar ownership (segurança)
+
+psql "$DATABASE_URL" -c "
+SELECT 
+  n.nspname AS schema,
+  c.relname AS object_name,
+  c.relkind AS type,
+  pg_catalog.pg_get_userbyid(c.relowner) AS owner
+FROM pg_class c
+JOIN pg_namespace n ON n.oid = c.relnamespace
+WHERE n.nspname = 'operacional'
+  AND c.relname IN ('obras', 'update_obras_timestamp')
+ORDER BY c.relname;
+"
+
+# Resultado esperado:
+# operacional | obras | r (table) | gbs_dev
+# operacional | update_obras_timestamp | p (function) | gbs_dev
+
+=======================================================
+
+## VALIDAÇÃO #8: Verificar trigger idempotente
+
+psql "$DATABASE_URL" -tAc "
+SELECT 
+  tgname AS trigger_name
+FROM pg_trigger
+WHERE tgname = 'trg_obras_updated_at'
+  AND tgrelid = 'operacional.obras'::regclass;
+"
+
+# Resultado esperado:
+# trg_obras_updated_at
+
+=======================================================
+
+## VALIDAÇÃO #9: Testar updated_at (funcionalidade)
+
+# Criar uma obra de teste
+psql "$DATABASE_URL" -c "
+INSERT INTO operacional.obras 
+  (codigo_obra, descricao, cliente, implantacao_contrato)
+VALUES 
+  ('OB-TEST-001', 'Teste Updated At', 'Cliente Teste', '2025-01-01')
+RETURNING id_obra, created_at, updated_at;
+"
+
+# Aguardar 2 segundos
+sleep 2
+
+# Atualizar a obra
+psql "$DATABASE_URL" -c "
+UPDATE operacional.obras
+SET descricao = 'Teste Updated At - Modificado'
+WHERE codigo_obra = 'OB-TEST-001'
+RETURNING id_obra, created_at, updated_at;
+"
+
+# Verificar: updated_at deve ser MAIOR que created_at
+
+# Limpar teste
+psql "$DATABASE_URL" -c "
+DELETE FROM operacional.obras 
+WHERE codigo_obra = 'OB-TEST-001';
+"
+
+=======================================================
+
+## VALIDAÇÃO #10: Performance (opcional)
+
+# Verificar tamanho dos índices
+psql "$DATABASE_URL" -c "
+SELECT 
+  indexname,
+  pg_size_pretty(pg_relation_size(schemaname||'.'||indexname)) AS size
+FROM pg_indexes
+WHERE schemaname = 'operacional'
+  AND tablename = 'obras'
+ORDER BY pg_relation_size(schemaname||'.'||indexname) DESC;
+"
+
+# Comparar tamanho antes/depois da remoção de idx_obras_codigo
+# Economia esperada: ~1-2 MB por 10k obras
+
+=======================================================
+NOTAS TÉCNICAS
+=======================================================
+
+1. DATABASE_URL deve estar configurada:
+   export DATABASE_URL="postgresql://gbs_dev:senha@localhost:5432/gbs_intranet_prod"
+
+2. Todas as migrations são idempotentes (podem ser re-executadas)
+
+3. Migration 018 remove idx_obras_codigo SOMENTE se existir
+   (verificação via pg_class + pg_namespace)
+
+4. UNIQUE constraint obras_codigo_obra_key cria índice automático
+   (não precisa de CREATE INDEX manual)
+
+5. Delimitadores nominais:
+   - $fn$ para funções
+   - $do$ para blocos anônimos
+
+6. Owner padrão: gbs_dev (tabelas, funções, triggers)
+
+=======================================================
+CRITÉRIOS DE SUCESSO
+=======================================================
+
+✅ Migration 006 aplica sem erros (idempotente 100%)
+✅ Migration 018 aplica sem erros (idempotente 100%)
+✅ 7 índices em operacional.obras (idx_obras_codigo ausente)
+✅ UNIQUE constraint obras_codigo_obra_key presente
+✅ Trigger trg_obras_updated_at funciona corretamente
+✅ Owner gbs_dev em tabela e função
+✅ Re-execução de 006 e 018 não gera erros
+✅ Orquestrador detecta 000 → 018
+
+=======================================================
+USO INTERNO - CONFIDENCIAL
+Globosul Engenharia | ti@globosul.com.br
+=======================================================
