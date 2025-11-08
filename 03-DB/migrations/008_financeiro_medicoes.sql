@@ -202,3 +202,27 @@ BEGIN
   END IF;
 END
 $do$;
+
+-- -------------------------------------------------------------------
+-- HOTFIX v1.0.2-HML: tornar trigger idempotente e garantir ownerships
+-- -------------------------------------------------------------------
+ALTER TABLE  financeiro.medicoes                      OWNER TO gbs_dev;
+ALTER FUNCTION financeiro.update_medicoes_timestamp() OWNER  TO gbs_dev;
+
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+      FROM pg_trigger
+     WHERE tgname  = 'trg_medicoes_updated_at'
+       AND tgrelid = 'financeiro.medicoes'::regclass
+  ) THEN
+    EXECUTE $$
+      CREATE TRIGGER trg_medicoes_updated_at
+      BEFORE UPDATE ON financeiro.medicoes
+      FOR EACH ROW
+      EXECUTE FUNCTION financeiro.update_medicoes_timestamp()
+    $$;
+  END IF;
+END
+$do$;
