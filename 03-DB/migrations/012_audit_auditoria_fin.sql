@@ -34,18 +34,18 @@ CREATE TABLE IF NOT EXISTS audit.auditoria_fin (
 );
 
 -- Índices para performance
-CREATE INDEX idx_auditoria_fin_user ON audit.auditoria_fin(user_id) WHERE user_id IS NOT NULL;
-CREATE INDEX idx_auditoria_fin_acao ON audit.auditoria_fin(acao);
-CREATE INDEX idx_auditoria_fin_entidade ON audit.auditoria_fin(entidade);
-CREATE INDEX idx_auditoria_fin_entidade_id ON audit.auditoria_fin(entidade_id);
-CREATE INDEX idx_auditoria_fin_created_at ON audit.auditoria_fin(created_at);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_user ON audit.auditoria_fin(user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_acao ON audit.auditoria_fin(acao);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_entidade ON audit.auditoria_fin(entidade);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_entidade_id ON audit.auditoria_fin(entidade_id);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_created_at ON audit.auditoria_fin(created_at);
 
 -- Índice composto para queries comuns (entidade + id + data)
-CREATE INDEX idx_auditoria_fin_timeline ON audit.auditoria_fin(entidade, entidade_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_timeline ON audit.auditoria_fin(entidade, entidade_id, created_at);
 
 -- Índice GIN para busca em JSONB
-CREATE INDEX idx_auditoria_fin_antes_gin ON audit.auditoria_fin USING gin(antes);
-CREATE INDEX idx_auditoria_fin_depois_gin ON audit.auditoria_fin USING gin(depois);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_antes_gin ON audit.auditoria_fin USING gin(antes);
+CREATE INDEX IF NOT EXISTS idx_auditoria_fin_depois_gin ON audit.auditoria_fin USING gin(depois);
 
 -- Comentários
 COMMENT ON TABLE audit.auditoria_fin IS 'Auditoria financeira - registra CRUD e transições em medições/NFs/pagamentos/glosas';

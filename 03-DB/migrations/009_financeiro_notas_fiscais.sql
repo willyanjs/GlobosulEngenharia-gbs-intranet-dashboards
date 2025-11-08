@@ -47,15 +47,15 @@ CREATE TABLE IF NOT EXISTS financeiro.notas_fiscais (
 );
 
 -- Índices para performance
-CREATE INDEX idx_nf_medicao ON financeiro.notas_fiscais(id_medicao);
-CREATE INDEX idx_nf_data_emissao ON financeiro.notas_fiscais(data_emissao_nf);
-CREATE INDEX idx_nf_chave_acesso ON financeiro.notas_fiscais(chave_acesso) WHERE chave_acesso IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_nf_medicao ON financeiro.notas_fiscais(id_medicao);
+CREATE INDEX IF NOT EXISTS idx_nf_data_emissao ON financeiro.notas_fiscais(data_emissao_nf);
+CREATE INDEX IF NOT EXISTS idx_nf_chave_acesso ON financeiro.notas_fiscais(chave_acesso) WHERE chave_acesso IS NOT NULL;
 
 -- Índice composto para vínculo alternativo (trio)
-CREATE INDEX idx_nf_trio ON financeiro.notas_fiscais(emitente_cnpj, serie, numero_nf);
+CREATE INDEX IF NOT EXISTS idx_nf_trio ON financeiro.notas_fiscais(emitente_cnpj, serie, numero_nf);
 
 -- Índice para queries de DSO (emissao + medicao)
-CREATE INDEX idx_nf_dso ON financeiro.notas_fiscais(data_emissao_nf, id_medicao);
+CREATE INDEX IF NOT EXISTS idx_nf_dso ON financeiro.notas_fiscais(data_emissao_nf, id_medicao);
 
 -- Comentários
 COMMENT ON TABLE financeiro.notas_fiscais IS 'Notas fiscais emitidas - vínculo N:1 com medições (uma medição pode ter múltiplas NFs)';
@@ -80,14 +80,22 @@ $$ LANGUAGE plpgsql;
 -- =====================================================
 
 -- -------------------------------------------------------------------
+
+-- -------------------------------------------------------------------
 -- HOTFIX v1.0.2-HML: idempotência de trigger + ownership explícito
 -- -------------------------------------------------------------------
--- Ajusta owners (tabela/funcão) — não quebra se já estiver correto
+
+-- Ajusta owners (tabela/função) se existirem
 DO $do$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='notas_fiscais' AND relnamespace='financeiro'::regnamespace) THEN
+  IF EXISTS (
+    SELECT 1 FROM pg_class
+     WHERE relname='notas_fiscais'
+       AND relnamespace='financeiro'::regnamespace
+  ) THEN
     EXECUTE 'ALTER TABLE financeiro.notas_fiscais OWNER TO gbs_dev';
   END IF;
+
   IF EXISTS (
     SELECT 1 FROM pg_proc
      WHERE proname='update_notas_fiscais_timestamp'
@@ -101,19 +109,23 @@ $do$;
 -- Cria a trigger somente se não existir (idempotente)
 DO $do$
 BEGIN
-  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='notas_fiscais' AND relnamespace='financeiro'::regnamespace)
+  IF EXISTS (
+       SELECT 1 FROM pg_class
+        WHERE relname='notas_fiscais'
+          AND relnamespace='financeiro'::regnamespace
+     )
      AND NOT EXISTS (
        SELECT 1 FROM pg_trigger
         WHERE tgname  = 'trg_notas_fiscais_updated_at'
           AND tgrelid = 'financeiro.notas_fiscais'::regclass
      )
   THEN
-    EXECUTE $$
+    EXECUTE $ddl$
       CREATE TRIGGER trg_notas_fiscais_updated_at
       BEFORE UPDATE ON financeiro.notas_fiscais
       FOR EACH ROW
       EXECUTE FUNCTION financeiro.update_notas_fiscais_timestamp()
-    $$;
+    $ddl$;
   END IF;
 END
 $do$;

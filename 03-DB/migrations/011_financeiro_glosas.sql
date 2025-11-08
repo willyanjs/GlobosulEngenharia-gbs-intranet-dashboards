@@ -35,12 +35,12 @@ CREATE TABLE IF NOT EXISTS financeiro.glosas (
 );
 
 -- Índices para performance
-CREATE INDEX idx_glosas_medicao ON financeiro.glosas(id_medicao);
-CREATE INDEX idx_glosas_data_registro ON financeiro.glosas(data_registro);
-CREATE INDEX idx_glosas_categoria ON financeiro.glosas(categoria) WHERE categoria IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_glosas_medicao ON financeiro.glosas(id_medicao);
+CREATE INDEX IF NOT EXISTS idx_glosas_data_registro ON financeiro.glosas(data_registro);
+CREATE INDEX IF NOT EXISTS idx_glosas_categoria ON financeiro.glosas(categoria) WHERE categoria IS NOT NULL;
 
 -- Índice composto para agregações de KPI (medicao + valor)
-CREATE INDEX idx_glosas_kpi ON financeiro.glosas(id_medicao, valor_glosa);
+CREATE INDEX IF NOT EXISTS idx_glosas_kpi ON financeiro.glosas(id_medicao, valor_glosa);
 
 -- Comentários
 COMMENT ON TABLE financeiro.glosas IS 'Glosas (valores rejeitados) - não altera valor_previsto, define valor_aprovado';
@@ -57,12 +57,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_glosas_updated_at
-    BEFORE UPDATE ON financeiro.glosas
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.update_glosas_timestamp();
-
 -- Trigger para atualizar valor_glosado na medição quando glosa é inserida/atualizada
 CREATE OR REPLACE FUNCTION financeiro.sync_glosa_to_medicao()
 RETURNS TRIGGER AS $$
@@ -79,12 +73,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_glosas_sync_medicao
-    AFTER INSERT OR UPDATE ON financeiro.glosas
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.sync_glosa_to_medicao();
-
 -- Trigger para atualizar medição quando glosa é deletada
 CREATE OR REPLACE FUNCTION financeiro.sync_glosa_delete_to_medicao()
 RETURNS TRIGGER AS $$
@@ -101,12 +89,6 @@ BEGIN
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_glosas_sync_medicao_delete
-    AFTER DELETE ON financeiro.glosas
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.sync_glosa_delete_to_medicao();
-
 -- =====================================================
 -- USO INTERNO - CONFIDENCIAL
 -- Globosul Engenharia | ti@globosul.com.br
