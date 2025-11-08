@@ -3,6 +3,7 @@
 -- Sprint: 2 - Medições
 -- Descrição: Tabela de contratos no schema operacional
 -- Data: 06/11/2025 (refatorado para schemas)
+-- Versão: v1.0.2-HML (fix: idempotência + delimitadores + owner)
 -- =====================================================
 
 -- Tabela de contratos (schema operacional)
@@ -38,16 +39,29 @@ CREATE TABLE IF NOT EXISTS operacional.contratos (
     CONSTRAINT chk_contratos_vigencia CHECK (vigencia_fim >= vigencia_inicio)
 );
 
--- Índices para performance
-CREATE INDEX idx_contratos_obra ON operacional.contratos(id_obra);
-CREATE INDEX idx_contratos_numero ON operacional.contratos(numero_contrato);
-CREATE INDEX idx_contratos_vigencia ON operacional.contratos(vigencia_inicio, vigencia_fim);
-CREATE INDEX idx_contratos_cliente_exati ON operacional.contratos(id_cliente_exati) 
+-- Owner explícito
+ALTER TABLE IF EXISTS operacional.contratos OWNER TO gbs_dev;
+
+-- Índices para performance (idempotentes)
+CREATE INDEX IF NOT EXISTS idx_contratos_numero
+    ON operacional.contratos(numero_contrato);
+
+CREATE INDEX IF NOT EXISTS idx_contratos_obra
+    ON operacional.contratos(id_obra);
+
+CREATE INDEX IF NOT EXISTS idx_contratos_vigencia
+    ON operacional.contratos(vigencia_inicio, vigencia_fim);
+
+CREATE INDEX IF NOT EXISTS idx_contratos_cliente_exati
+    ON operacional.contratos(id_cliente_exati)
     WHERE id_cliente_exati IS NOT NULL;
-CREATE INDEX idx_contratos_ativo ON operacional.contratos(ativo);
+
+CREATE INDEX IF NOT EXISTS idx_contratos_ativo
+    ON operacional.contratos(ativo);
 
 -- Índice composto para busca de contratos vigentes de uma obra
-CREATE INDEX idx_contratos_obra_vigencia ON operacional.contratos(id_obra, vigencia_inicio, vigencia_fim) 
+CREATE INDEX IF NOT EXISTS idx_contratos_obra_vigencia
+    ON operacional.contratos(id_obra, vigencia_inicio, vigencia_fim)
     WHERE ativo = true;
 
 -- Comentários
@@ -56,19 +70,48 @@ COMMENT ON COLUMN operacional.contratos.numero_contrato IS 'Número do contrato 
 COMMENT ON COLUMN operacional.contratos.id_cliente_exati IS 'ID do cliente no sistema Exati para integração futura';
 COMMENT ON COLUMN operacional.contratos.valor_total IS 'Valor total do contrato em reais (2 casas decimais)';
 
--- Trigger para atualizar updated_at
+-- =====================================================
+-- v1.0.2-HML — Trigger idempotente + delimitadores
+-- =====================================================
+
+-- Função: atualiza updated_at antes de UPDATE
 CREATE OR REPLACE FUNCTION operacional.update_contratos_timestamp()
-RETURNS TRIGGER AS $$
+RETURNS trigger
+LANGUAGE plpgsql
+AS $fn$
 BEGIN
-    NEW.updated_at = CURRENT_TIMESTAMP;
+    NEW.updated_at := CURRENT_TIMESTAMP;
     RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$fn$;
 
-CREATE TRIGGER trg_contratos_updated_at
-    BEFORE UPDATE ON operacional.contratos
-    FOR EACH ROW
-    EXECUTE FUNCTION operacional.update_contratos_timestamp();
+-- Ownership explícito
+ALTER FUNCTION operacional.update_contratos_timestamp() OWNER TO gbs_dev;
+
+-- Trigger: criar somente se ainda não existir
+DO $do$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1
+    FROM pg_trigger
+    WHERE tgname = 'trg_contratos_updated_at'
+      AND tgrelid = 'operacional.contratos'::regclass
+  ) THEN
+    CREATE TRIGGER trg_contratos_updated_at
+      BEFORE UPDATE ON operacional.contratos
+      FOR EACH ROW
+      EXECUTE FUNCTION operacional.update_contratos_timestamp();
+  END IF;
+END
+$do$;
+
+-- =====================================================
+-- NOTA v1.0.2-HML:
+-- - Índices com IF NOT EXISTS (idempotência total)
+-- - Owner explícito para gbs_dev (tabela + função)
+-- - Delimitadores nominais: $fn$ (função) e $do$ (bloco)
+-- - Trigger idempotente (verificação pg_trigger)
+-- =====================================================
 
 -- =====================================================
 -- USO INTERNO - CONFIDENCIAL

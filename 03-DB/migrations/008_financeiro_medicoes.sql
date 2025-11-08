@@ -143,12 +143,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
--- CREATE TRIGGER trg_medicoes_updated_at
-    BEFORE UPDATE ON financeiro.medicoes
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.update_medicoes_timestamp();
-
 -- ============================================
 -- DOWN: Rollback
 -- ============================================
