@@ -127,12 +127,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_pagamentos_updated_at
-    BEFORE UPDATE ON financeiro.pagamentos
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.update_pagamentos_timestamp();
-
 -- Trigger para atualizar status automaticamente quando data_pagamento preenchida
 CREATE OR REPLACE FUNCTION financeiro.update_pagamento_status_on_payment()
 RETURNS TRIGGER AS $$
@@ -143,12 +137,6 @@ BEGIN
     RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_pagamentos_auto_status
-    BEFORE UPDATE ON financeiro.pagamentos
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.update_pagamento_status_on_payment();
-
 -- ============================================
 -- DOWN: Rollback
 -- ============================================
@@ -179,3 +167,5 @@ CREATE TRIGGER trg_pagamentos_auto_status
 -- USO INTERNO - CONFIDENCIAL
 -- Globosul Engenharia | ti@globosul.com.br
 -- =====================================================
+
+-- -------------------------------------------------------------------
