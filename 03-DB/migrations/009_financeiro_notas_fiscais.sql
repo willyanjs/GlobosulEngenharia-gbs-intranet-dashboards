@@ -74,12 +74,46 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER trg_notas_fiscais_updated_at
-    BEFORE UPDATE ON financeiro.notas_fiscais
-    FOR EACH ROW
-    EXECUTE FUNCTION financeiro.update_notas_fiscais_timestamp();
-
 -- =====================================================
 -- USO INTERNO - CONFIDENCIAL
 -- Globosul Engenharia | ti@globosul.com.br
 -- =====================================================
+
+-- -------------------------------------------------------------------
+-- HOTFIX v1.0.2-HML: idempotência de trigger + ownership explícito
+-- -------------------------------------------------------------------
+-- Ajusta owners (tabela/funcão) — não quebra se já estiver correto
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='notas_fiscais' AND relnamespace='financeiro'::regnamespace) THEN
+    EXECUTE 'ALTER TABLE financeiro.notas_fiscais OWNER TO gbs_dev';
+  END IF;
+  IF EXISTS (
+    SELECT 1 FROM pg_proc
+     WHERE proname='update_notas_fiscais_timestamp'
+       AND pronamespace='financeiro'::regnamespace
+  ) THEN
+    EXECUTE 'ALTER FUNCTION financeiro.update_notas_fiscais_timestamp() OWNER TO gbs_dev';
+  END IF;
+END
+$do$;
+
+-- Cria a trigger somente se não existir (idempotente)
+DO $do$
+BEGIN
+  IF EXISTS (SELECT 1 FROM pg_class WHERE relname='notas_fiscais' AND relnamespace='financeiro'::regnamespace)
+     AND NOT EXISTS (
+       SELECT 1 FROM pg_trigger
+        WHERE tgname  = 'trg_notas_fiscais_updated_at'
+          AND tgrelid = 'financeiro.notas_fiscais'::regclass
+     )
+  THEN
+    EXECUTE $$
+      CREATE TRIGGER trg_notas_fiscais_updated_at
+      BEFORE UPDATE ON financeiro.notas_fiscais
+      FOR EACH ROW
+      EXECUTE FUNCTION financeiro.update_notas_fiscais_timestamp()
+    $$;
+  END IF;
+END
+$do$;
